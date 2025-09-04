@@ -41,23 +41,49 @@ npx serve .
 ```
 
 ### Deploy lên GitHub Pages
+
+#### Cách 1: Sử dụng script tự động
+```bash
+# Cấu hình remote repository trước
+git remote add origin https://github.com/USERNAME/REPO_NAME.git
+
+# Deploy tự động
+./deploy.sh "Commit message của bạn"
+```
+
+#### Cách 2: Deploy thủ công
 1. Fork repository này
 2. Vào Settings > Pages
 3. Chọn source: "GitHub Actions"
 4. Push code lên branch main/master
 5. GitHub Actions sẽ tự động deploy
 
+#### Cách 3: Tạo Release
+```bash
+# Tạo tag version
+git tag v1.0.0
+git push origin v1.0.0
+
+# GitHub Actions sẽ tự động tạo release
+```
+
 ## 📁 Cấu trúc Project
 
 ```
-├── index.html          # File HTML chính
-├── style.css           # CSS với animations
-├── script.js           # JavaScript tương tác
+├── index.html                    # File HTML chính
+├── style.css                     # CSS với animations
+├── script.js                     # JavaScript tương tác
+├── deploy.sh                     # Script deploy tự động
 ├── .github/
-│   └── workflows/
-│       └── deploy.yml  # GitHub Actions workflow
-├── .gitignore          # Git ignore file
-└── README.md           # File hướng dẫn
+│   ├── workflows/
+│   │   ├── deploy.yml            # Deploy lên GitHub Pages
+│   │   ├── ci.yml                # Kiểm tra chất lượng code
+│   │   ├── release.yml           # Tạo release tự động
+│   │   └── dependency-check.yml  # Kiểm tra dependencies
+│   └── dependabot.yml            # Tự động cập nhật dependencies
+├── .gitignore                    # Git ignore file
+├── README.md                     # File hướng dẫn
+└── DEPLOYMENT.md                 # Hướng dẫn deploy chi tiết
 ```
 
 ## 🛠️ Công nghệ sử dụng
@@ -65,8 +91,31 @@ npx serve .
 - **HTML5** - Cấu trúc semantic
 - **CSS3** - Animations, Transitions, Grid, Flexbox
 - **Vanilla JavaScript** - Tương tác và hiệu ứng động
-- **GitHub Actions** - CI/CD tự động
+- **GitHub Actions** - CI/CD tự động với 4 workflows
 - **GitHub Pages** - Hosting miễn phí
+- **Dependabot** - Tự động cập nhật dependencies
+
+## 🤖 GitHub Actions Workflows
+
+### 🚀 Deploy Workflow (`deploy.yml`)
+- **Trigger**: Push to main/master, Pull requests
+- **Chức năng**: Tự động deploy lên GitHub Pages
+- **Features**: Kiểm tra files, setup Pages, upload artifacts
+
+### 🔍 CI Workflow (`ci.yml`)
+- **Trigger**: Push, Pull requests, Manual
+- **Chức năng**: Kiểm tra chất lượng code
+- **Features**: HTML/CSS/JS validation, security check, performance analysis
+
+### 🏷️ Release Workflow (`release.yml`)
+- **Trigger**: Push tags (v*.*.*), Manual
+- **Chức năng**: Tự động tạo release
+- **Features**: Generate changelog, upload assets, create GitHub release
+
+### 🔍 Dependency Check (`dependency-check.yml`)
+- **Trigger**: Weekly schedule, Push, Manual
+- **Chức năng**: Kiểm tra dependencies và bảo mật
+- **Features**: CDN check, bundle analysis, security scan
 
 ## 🎯 Hiệu ứng chi tiết
 

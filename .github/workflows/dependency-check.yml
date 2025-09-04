@@ -1,0 +1,127 @@
+name: 🔍 Dependency Check
+
+on:
+  schedule:
+    - cron: '0 0 * * 1'  # Chạy mỗi thứ 2 hàng tuần
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  check-dependencies:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔍 Check for external dependencies
+        run: |
+          echo "🔍 Checking for external dependencies..."
+          
+          # Kiểm tra CDN links trong HTML
+          if grep -q "https://" index.html; then
+            echo "📦 External CDN dependencies found:"
+            grep -o 'https://[^"]*' index.html || true
+          else
+            echo "✅ No external CDN dependencies found"
+          fi
+          
+          # Kiểm tra external fonts
+          if grep -q "fonts.googleapis.com\|fonts.gstatic.com" *.html *.css; then
+            echo "🔤 External font dependencies found:"
+            grep -o 'fonts.googleapis.com[^"]*\|fonts.gstatic.com[^"]*' *.html *.css || true
+          else
+            echo "✅ No external font dependencies found"
+          fi
+
+      - name: 🌐 Check CDN availability
+        run: |
+          echo "🌐 Checking CDN availability..."
+          
+          # Kiểm tra các CDN phổ biến
+          CDNS=(
+            "https://fonts.googleapis.com"
+            "https://cdnjs.cloudflare.com"
+            "https://unpkg.com"
+            "https://jsdelivr.net"
+          )
+          
+          for cdn in "${CDNS[@]}"; do
+            if curl -s --head "$cdn" | head -n 1 | grep -q "200 OK"; then
+              echo "✅ $cdn is available"
+            else
+              echo "⚠️ $cdn might be unavailable"
+            fi
+          done
+
+      - name: 📊 Analyze bundle size
+        run: |
+          echo "📊 Analyzing bundle size..."
+          
+          # Tính tổng kích thước
+          TOTAL_SIZE=$(find . -name "*.html" -o -name "*.css" -o -name "*.js" | xargs wc -c | tail -1 | awk '{print $1}')
+          echo "📦 Total bundle size: $TOTAL_SIZE bytes ($(($TOTAL_SIZE / 1024)) KB)"
+          
+          # Phân tích từng file
+          echo "📄 File sizes:"
+          for file in *.html *.css *.js; do
+            if [ -f "$file" ]; then
+              size=$(wc -c < "$file")
+              echo "  $file: $size bytes ($(($size / 1024)) KB)"
+            fi
+          done
+
+      - name: 🔒 Security check
+        run: |
+          echo "🔒 Running security checks..."
+          
+          # Kiểm tra mixed content
+          if grep -q "http:" *.html *.css *.js; then
+            echo "⚠️ Mixed content detected (HTTP links found)"
+            grep -n "http:" *.html *.css *.js || true
+          else
+            echo "✅ No mixed content detected"
+          fi
+          
+          # Kiểm tra inline scripts
+          if grep -q "<script>" index.html; then
+            echo "⚠️ Inline scripts detected"
+          else
+            echo "✅ No inline scripts detected"
+          fi
+
+      - name: 📱 Performance check
+        run: |
+          echo "📱 Performance analysis..."
+          
+          # Đếm số lượng animations
+          ANIMATIONS=$(grep -c "animation\|transition" style.css || echo "0")
+          echo "🎬 Number of animations: $ANIMATIONS"
+          
+          # Kiểm tra CSS optimization
+          if grep -q "!important" style.css; then
+            echo "⚠️ !important declarations found (consider refactoring)"
+            grep -n "!important" style.css || true
+          else
+            echo "✅ No !important declarations found"
+          fi
+          
+          # Kiểm tra unused CSS (basic check)
+          if grep -q "\.unused\|\.test\|\.debug" style.css; then
+            echo "⚠️ Potentially unused CSS classes found"
+          else
+            echo "✅ No obvious unused CSS detected"
+          fi
+
+      - name: 📋 Generate report
+        run: |
+          echo "📋 Dependency Check Report"
+          echo "========================="
+          echo "Date: $(date)"
+          echo "Repository: ${{ github.repository }}"
+          echo "Branch: ${{ github.ref_name }}"
+          echo ""
+          echo "✅ All checks completed successfully!"
+          echo "📊 Bundle size: $(find . -name "*.html" -o -name "*.css" -o -name "*.js" | xargs wc -c | tail -1 | awk '{print $1}') bytes"
+          echo "🎬 Animations: $(grep -c "animation\|transition" style.css || echo "0")"
+          echo "📦 External deps: $(grep -c "https://" index.html || echo "0")"

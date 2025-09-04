@@ -1,10 +1,11 @@
-name: Deploy to GitHub Pages
+name: 🚀 Deploy to GitHub Pages
 
 on:
   push:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
+  workflow_dispatch: # Cho phép chạy thủ công
 
 permissions:
   contents: read
@@ -16,27 +17,76 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Job kiểm tra và build
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: 📥 Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Setup Pages
+      - name: 🔍 Check files
+        run: |
+          echo "📁 Files in repository:"
+          ls -la
+          echo "📄 HTML file check:"
+          if [ -f "index.html" ]; then
+            echo "✅ index.html found"
+          else
+            echo "❌ index.html not found"
+            exit 1
+          fi
+          echo "🎨 CSS file check:"
+          if [ -f "style.css" ]; then
+            echo "✅ style.css found"
+          else
+            echo "❌ style.css not found"
+            exit 1
+          fi
+          echo "⚡ JS file check:"
+          if [ -f "script.js" ]; then
+            echo "✅ script.js found"
+          else
+            echo "❌ script.js not found"
+            exit 1
+          fi
+
+      - name: 🌐 Setup Pages
         uses: actions/configure-pages@v4
 
-      - name: Upload artifact
+      - name: 📦 Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: '.'
 
+  # Job deploy
   deploy:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     needs: build
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
     steps:
-      - name: Deploy to GitHub Pages
+      - name: 🚀 Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+  # Job thông báo kết quả
+  notify:
+    runs-on: ubuntu-latest
+    needs: [build, deploy]
+    if: always()
+    steps:
+      - name: 📊 Deployment Status
+        run: |
+          if [ "${{ needs.deploy.result }}" == "success" ]; then
+            echo "🎉 Deployment successful!"
+            echo "🌐 Your app is live at: ${{ needs.deploy.outputs.page_url }}"
+          elif [ "${{ needs.deploy.result }}" == "failure" ]; then
+            echo "❌ Deployment failed!"
+            echo "Check the logs for more details."
+          else
+            echo "⏳ Deployment in progress..."
+          fi

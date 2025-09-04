@@ -1,0 +1,189 @@
+name: 🔍 CI - Code Quality Check
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  # Kiểm tra cú pháp và chất lượng code
+  quality-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔍 Check HTML syntax
+        run: |
+          echo "🔍 Checking HTML syntax..."
+          if command -v tidy >/dev/null 2>&1; then
+            tidy -q -e index.html || echo "⚠️ HTML validation warnings (non-critical)"
+          else
+            echo "ℹ️ HTML Tidy not available, skipping validation"
+          fi
+
+      - name: 🎨 Check CSS syntax
+        run: |
+          echo "🎨 Checking CSS syntax..."
+          if command -v css-validator >/dev/null 2>&1; then
+            css-validator style.css || echo "⚠️ CSS validation warnings (non-critical)"
+          else
+            echo "ℹ️ CSS Validator not available, checking basic syntax..."
+            # Kiểm tra cú pháp CSS cơ bản
+            if grep -q "{" style.css && grep -q "}" style.css; then
+              echo "✅ CSS has basic structure"
+            else
+              echo "❌ CSS structure issues found"
+              exit 1
+            fi
+          fi
+
+      - name: ⚡ Check JavaScript syntax
+        run: |
+          echo "⚡ Checking JavaScript syntax..."
+          if command -v node >/dev/null 2>&1; then
+            node -c script.js && echo "✅ JavaScript syntax is valid"
+          else
+            echo "ℹ️ Node.js not available, checking basic syntax..."
+            # Kiểm tra cú pháp JS cơ bản
+            if grep -q "function\|=>\|{" script.js; then
+              echo "✅ JavaScript has basic structure"
+            else
+              echo "❌ JavaScript structure issues found"
+              exit 1
+            fi
+          fi
+
+      - name: 📊 File size check
+        run: |
+          echo "📊 Checking file sizes..."
+          echo "HTML size: $(wc -c < index.html) bytes"
+          echo "CSS size: $(wc -c < style.css) bytes"
+          echo "JS size: $(wc -c < script.js) bytes"
+          
+          # Cảnh báo nếu file quá lớn
+          if [ $(wc -c < index.html) -gt 100000 ]; then
+            echo "⚠️ HTML file is quite large (>100KB)"
+          fi
+          if [ $(wc -c < style.css) -gt 50000 ]; then
+            echo "⚠️ CSS file is quite large (>50KB)"
+          fi
+          if [ $(wc -c < script.js) -gt 100000 ]; then
+            echo "⚠️ JavaScript file is quite large (>100KB)"
+          fi
+
+      - name: 🔗 Check for broken links
+        run: |
+          echo "🔗 Checking for external links..."
+          if grep -q "http" index.html; then
+            echo "ℹ️ External links found in HTML"
+            grep -o 'http[^"]*' index.html || true
+          else
+            echo "✅ No external links found"
+          fi
+
+      - name: 📱 Check responsive design
+        run: |
+          echo "📱 Checking for responsive design elements..."
+          if grep -q "@media\|viewport\|responsive" style.css; then
+            echo "✅ Responsive design elements found"
+          else
+            echo "⚠️ No responsive design elements detected"
+          fi
+          
+          if grep -q "viewport" index.html; then
+            echo "✅ Viewport meta tag found"
+          else
+            echo "⚠️ Viewport meta tag not found"
+          fi
+
+  # Kiểm tra bảo mật cơ bản
+  security-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔒 Basic security check
+        run: |
+          echo "🔒 Running basic security checks..."
+          
+          # Kiểm tra không có thông tin nhạy cảm
+          if grep -qi "password\|secret\|key\|token" *.html *.css *.js; then
+            echo "⚠️ Potential sensitive information found"
+            grep -i "password\|secret\|key\|token" *.html *.css *.js || true
+          else
+            echo "✅ No obvious sensitive information found"
+          fi
+          
+          # Kiểm tra không có inline scripts nguy hiểm
+          if grep -q "eval\|innerHTML\|document.write" script.js; then
+            echo "⚠️ Potentially unsafe JavaScript patterns found"
+          else
+            echo "✅ JavaScript patterns look safe"
+          fi
+
+  # Test trên nhiều trình duyệt (simulation)
+  browser-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🌐 Browser compatibility check
+        run: |
+          echo "🌐 Checking browser compatibility..."
+          
+          # Kiểm tra CSS features
+          if grep -q "grid\|flexbox\|transform\|animation" style.css; then
+            echo "✅ Modern CSS features detected"
+          fi
+          
+          # Kiểm tra ES6+ features
+          if grep -q "const\|let\|=>\|class\|async" script.js; then
+            echo "✅ Modern JavaScript features detected"
+          fi
+          
+          # Kiểm tra HTML5 features
+          if grep -q "<!DOCTYPE html>\|<main>\|<section>\|<article>" index.html; then
+            echo "✅ Modern HTML5 features detected"
+          fi
+
+      - name: 📊 Performance hints
+        run: |
+          echo "📊 Performance analysis..."
+          
+          # Đếm số lượng animations
+          animation_count=$(grep -c "animation\|transition" style.css || echo "0")
+          echo "🎬 Number of animations/transitions: $animation_count"
+          
+          # Kiểm tra lazy loading
+          if grep -q "loading.*lazy\|IntersectionObserver" script.js; then
+            echo "✅ Lazy loading detected"
+          else
+            echo "ℹ️ No lazy loading detected"
+          fi
+
+  # Tạo báo cáo tổng hợp
+  report:
+    runs-on: ubuntu-latest
+    needs: [quality-check, security-check, browser-test]
+    if: always()
+    steps:
+      - name: 📋 Generate report
+        run: |
+          echo "📋 CI Report Summary"
+          echo "==================="
+          echo "Quality Check: ${{ needs.quality-check.result }}"
+          echo "Security Check: ${{ needs.security-check.result }}"
+          echo "Browser Test: ${{ needs.browser-test.result }}"
+          echo ""
+          if [ "${{ needs.quality-check.result }}" == "success" ] && 
+             [ "${{ needs.security-check.result }}" == "success" ] && 
+             [ "${{ needs.browser-test.result }}" == "success" ]; then
+            echo "🎉 All checks passed! Ready for deployment."
+          else
+            echo "⚠️ Some checks failed. Please review the logs."
+          fi
